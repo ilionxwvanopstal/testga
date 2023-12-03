@@ -1,0 +1,383 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "managedIdentityName": {
+            "type": "string",
+            "defaultvalue": "[format('uaisvraut', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "The name of the managed identity resource."
+            }
+        },
+        "saroleDefinitionId": {
+            "type": "string",
+            "defaultValue": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+            "metadata": {
+                "description": "Storage Blob Data Reader https://docs.microsoft.com/azure/role-based-access-control/built-in-roles"
+            }
+        },
+        "sasku": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Premium_LRS",
+                "Premium_ZRS",
+                "Standard_GRS",
+                "Standard_GZRS",
+                "Standard_LRS",
+                "Standard_RAGRS",
+                "Standard_RAGZRS",
+                "Standard_ZRS"
+            ],
+            "metadata": {
+                "description": "Storage Account type"
+            }
+        },
+        "storageaccounttype": {
+            "type": "string",
+            "defaultValue": "StorageV2",
+            "allowedValues": [
+                "BlobStorage",
+                "BlockBlobStorage",
+                "FileStorage",
+                "Storage",
+                "StorageV2"
+            ],
+            "metadata": {
+                "description": "Required. Indicates the type of storage account."
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "defaultvalue": "[toLower(concat('sasvr', uniqueString(resourceGroup().id) ) )]",
+            "metadata": {
+                "description": "Specifies the name of the Azure Storage account."
+            }
+        },
+        "containerName": {
+            "type": "string",
+            "defaultvalue": "svraut",
+            "metadata": {
+                "description": "Specifies the name of the blob container."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Specifies the location in which the Azure Storage resources should be deployed."
+            }
+        },
+        "saaccessTier": {
+            "type": "string",
+            "defaultValue": "Cool",
+            "allowedValues": [
+                "Cool", 
+                "Hot",
+                "Premium"
+            ],
+            "metadata": {
+                "description": "Required for storage accounts where kind = BlobStorage."
+            }
+        },
+        "saminimumTlsVersion": {
+            "type": "string",
+            "defaultValue": "TLS1_2",
+            "allowedValues": [
+             "TLS1_0",
+             "TLS1_1",
+             "TLS1_2"
+            ],
+            "metadata": {
+                "description": "Set the minimum TLS version to be permitted on requests to storage." 
+            }
+        },
+        "sanetworkAclsBypass": {
+            "type": "string",
+            "defaultvalue": "None",
+            "allowedValues": [
+             "AzureServices",
+             "Logging",
+             "Metrics",
+             "None"
+            ],
+            "metadata": {
+                "description": "Specifies whether traffic is bypassed for Logging/Metrics/AzureServices. Possible values are any combination of Logging,Metrics,AzureServices (For example, 'Logging, Metrics'), or None to bypass none of those traffics." 
+            }
+        },
+        "sanetworkAclsDefaultAction": {
+            "type": "string",
+            "defaultvalue": "Deny",
+            "allowedValues": [
+             "Allow",
+             "Deny"
+            ],
+            "metadata": {
+                "description": "Specifies the default action of allow or deny when no other rules match."
+            }
+        },
+        "allowBlobPublicAccess": {
+            "type": "bool",
+            "defaultvalue": false,
+            "metadata": {
+                "description": "Allow or disallow public access to all blobs or containers in the storage account."
+            }
+        },
+        "vnetresourcegroup": {
+            "type": "string"
+        },
+        "vnetname": {
+            "type": "string"
+        },
+        "subnetnames": {
+            "type": "array",
+            "metadata": {
+                "description": "Subnets "
+            }
+        },
+        "allowedips": {
+            "type": "array",
+            "metadata": {
+                "description": "Specifies the IP or IP range in CIDR format. Only IPV4 address is allowed."
+            }
+        },
+        "keyvaultname": {
+            "type": "string",
+            "defaultValue": "[format('kv{0}', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "The resource name."
+            }
+        },
+        "kvskuname": {
+            "type": "string",
+            "defaultvalue": "standard",
+            "allowedValues": [
+                "standard",
+                "premium"
+            ],
+            "metadata": {
+                "description": "SKU name to specify whether the key vault is a standard vault or a premium vault."
+            }
+        },
+        "kvskufamily": {
+            "type": "string",
+            "defaultvalue": "A",
+            "allowedValues": [
+                "A"
+            ],
+            "metadata": {
+                "description": "SKU family name."
+            }
+        },
+        "kvaccessPolicies": {
+            "type": "array",
+            "defaultvalue": [
+            ],
+            "metadata": {
+                "description": "An array of 0 to 1024 identities that have access to the key vault. All identities in the array must use the same tenant ID as the key vault's tenant ID. When createMode is set to recover, access policies are not required. Otherwise, access policies are required."
+            }
+        },
+        "tenantid": {
+            "type": "string",
+            "defaultvalue": "[subscription().tenantId]",
+            "metadata": {
+                "description": "The Azure Active Directory tenant ID that should be used for authenticating requests to the key vault."
+            }
+        },
+        "kvenabledForDeployment": {
+            "type": "bool",
+            "defaultvalue": true,
+            "metadata": {
+                "description": "Property to specify whether Azure Virtual Machines are permitted to retrieve certificates stored as secrets from the key vault."
+            }
+        },
+        "kvenabledForTemplateDeployment": {
+            "type": "bool",
+            "defaultvalue": true,
+            "metadata": {
+                "description": "Property to specify whether Azure Resource Manager is permitted to retrieve secrets from the key vault"
+            }
+        },
+        "kvenabledForDiskEncryption": {
+            "type": "bool",
+            "defaultvalue": false,
+            "metadata": {
+                "description": "Property to specify whether Azure Disk Encryption is permitted to retrieve secrets from the vault and unwrap keys."
+            }
+        },
+        "kvenableRbacAuthorization": {
+            "type": "bool",
+            "defaultvalue": true,
+            "metadata": {
+                "description": "Property that controls how data actions are authorized. When true, the key vault will use Role Based Access Control (RBAC) for authorization of data actions, and the access policies specified in vault properties will be ignored. When false, the key vault will use the access policies specified in vault properties, and any policy stored on Azure Resource Manager will be ignored. If null or not specified, the vault is created with the default value of false. Note that management actions are always authorized with RBAC."
+            }
+        },
+        "kvpublicNetworkAccess": {
+            "type": "string",
+            "defaultvalue": "Disabled",
+            "metadata": {
+                "description": "Property to specify whether the vault will accept traffic from public internet. If set to 'disabled' all traffic except private endpoint traffic and that that originates from trusted services will be blocked. This will override the set firewall rules, meaning that even if the firewall rules are present we will not honor the rules."
+            }
+        },
+        "kvnetworkAclsBypass": {
+            "type": "string",
+            "defaultvalue": "AzureServices",
+            "allowedValues": [
+             "AzureServices",
+             "Logging",
+             "Metrics",
+             "None"
+            ],
+            "metadata": {
+                "description": "Specifies whether traffic is bypassed for Logging/Metrics/AzureServices. Possible values are any combination of Logging,Metrics,AzureServices (For example, 'Logging, Metrics'), or None to bypass none of those traffics." 
+            }
+        },
+        "kvnetworkAclsDefaultAction": {
+            "type": "string",
+            "defaultvalue": "Deny",
+            "allowedValues": [
+             "Allow",
+             "Deny"
+            ],
+            "metadata": {
+                "description": "Specifies the default action of allow or deny when no other rules match."
+            }
+        },
+        "kvenableSoftDelete": {
+            "type": "bool",
+            "defaultvalue": true,
+            "metadata": {
+                "description": "Property to specify whether the 'soft delete' functionality is enabled for this key vault. If it's not set to any value(true or false) when creating new key vault, it will be set to true by default. Once set to true, it cannot be reverted to false."
+            }
+        },
+        "kvsoftDeleteRetentionInDays": {
+            "type": "int",
+            "defaultvalue": 90,
+            "metadata": {
+                "description": "softDelete data retention days. It accepts >=7 and <=90."
+            }
+        }
+    },
+    "variables": {
+        "myvnetresourcegroup": "[parameters('vnetresourcegroup')]",
+        "myvnetname": "[parameters('vnetname')]",
+        "mysubnetnames": "[parameters('subnetnames')]",
+        "mysubnetref": "[concat(subscription().id, '/resourceGroups/', variables('myvnetresourcegroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('myvnetname'), '/subnets/')]",
+        "myallowedips": "[parameters('allowedips')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+            "apiVersion": "2023-01-31",
+            "name": "[parameters('managedIdentityName')]",
+            "location": "[parameters('location')]"
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2022-04-01",
+            "name": "[guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), resourceGroup().id, parameters('saroleDefinitionId'))]",
+            "scope": "[concat('Microsoft.Storage/storageAccounts', '/', parameters('storageAccountName'))]",
+            "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))).principalId]",
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', parameters('saroleDefinitionId'))]",
+                "principalType": "ServicePrincipal"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', parameters('containerName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2022-09-01",
+            "name": "[parameters('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('sasku')]"
+            },
+            "kind": "[parameters('storageaccounttype')]",
+            "properties": {
+                "accessTier": "[parameters('saaccessTier')]",
+                "minimumTlsVersion": "[parameters('saminimumTlsVersion')]",
+                "allowBlobPublicAccess":  "[parameters('allowBlobPublicAccess')]",
+                "defaultaction": "deny",
+                "networkAcls": {
+                    "bypass": "[parameters('sanetworkAclsBypass')]",
+                    "defaultAction": "[parameters('sanetworkAclsDefaultAction')]",
+                    "copy": [
+                        {
+                            "name": "virtualNetworkRules",
+                            "count": "[length(variables('mysubnetnames'))]",
+                            "input": {
+                                "id": "[concat(variables('mysubnetref'), variables('mysubnetnames')[copyIndex('virtualNetworkRules')])]",
+                                "action": "allow"
+                            }
+                        },
+                        {
+                            "name": "ipRules",
+                            "count": "[length(variables('myallowedips'))]",
+                            "input": {
+                                "value": "[concat(variables('myallowedips')[copyIndex('ipRules')])]",
+                                "action": "allow"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "comments": "Create container",
+            "apiVersion": "2022-09-01",
+            "name": "[format('{0}/default/{1}', parameters('storageAccountName'), parameters('containerName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ]
+        },
+        {
+            "apiVersion": "2021-10-01",
+            "name": "[parameters('keyvaultname')]",
+            "location": "[parameters('location')]",
+            "type": "Microsoft.KeyVault/vaults",
+            "properties": {
+                "enabledForDeployment": "[parameters('kvenabledForDeployment')]",
+                "enabledForTemplateDeployment": "[parameters('kvenabledForTemplateDeployment')]",
+                "enabledForDiskEncryption": "[parameters('kvenabledForDiskEncryption')]",
+                "enableRbacAuthorization": "[parameters('kvenableRbacAuthorization')]",
+                "accessPolicies": "[parameters('kvaccessPolicies')]",
+                "tenantId": "[parameters('tenantid')]",
+                "sku": {
+                    "name": "[parameters('kvskuname')]",
+                    "family": "[parameters('kvskufamily')]"
+                },
+                "publicNetworkAccess": "[parameters('kvpublicNetworkAccess')]",
+                "enableSoftDelete": "[parameters('kvenableSoftDelete')]",
+                "softDeleteRetentionInDays": "[parameters('kvsoftDeleteRetentionInDays')]",
+                "networkAcls": {
+                    "bypass": "[parameters('kvnetworkAclsBypass')]",
+                    "defaultAction": "[parameters('kvnetworkAclsDefaultAction')]",
+                    "copy": [
+                        {
+                            "name": "virtualNetworkRules",
+                            "count": "[length(variables('mysubnetnames'))]",
+                            "input": {
+                                "id": "[concat(variables('mysubnetref'), variables('mysubnetnames')[copyIndex('virtualNetworkRules')])]",
+                                "action": "allow"
+                            }
+                        },
+                        {
+                            "name": "ipRules",
+                            "count": "[length(variables('myallowedips'))]",
+                            "input": {
+                                "value": "[concat(variables('myallowedips')[copyIndex('ipRules')])]",
+                                "action": "allow"
+                            }
+                        }
+                    ]
+                }
+            },
+            "tags": {},
+            "dependsOn": []
+        }
+    ]
+}
